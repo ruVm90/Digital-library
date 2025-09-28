@@ -1,0 +1,29 @@
+public/
+Solo aquí hay archivos accesibles desde fuera. Normalmente, un único index.php que actúa como router y redirige las peticiones a los controladores.
+
+src/Controllers/
+Aquí defines las funciones que responden a los endpoints (createUser, getUser, etc.).
+
+src/Models/
+Representan tus tablas o entidades. Ejemplo: User.php puede tener propiedades como id, nombre, rol.
+
+src/Services/
+Aquí va la lógica de negocio que no quieres meter en el controlador. Ejemplo: validación de roles, verificar si un usuario ya existe antes de crearlo.
+
+src/Database/
+Archivo para la conexión a la base de datos (Database.php) y quizá migraciones simples.
+
+config/
+Aquí defines la configuración del servicio (credenciales de DB, variables de entorno).
+
+🔹 Cómo sería el flujo
+
+public/index.php recibe la petición.
+
+Dependiendo del endpoint (/users, /users/1, etc.), llama al controlador correspondiente.
+
+El Controlador usa el Servicio para la lógica.
+
+El Servicio usa el Modelo para interactuar con la base de datos.
+
+Devuelves la respuesta en JSON.
