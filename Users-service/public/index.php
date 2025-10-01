@@ -2,6 +2,6 @@
 require_once __DIR__ . '/../src/Models/User.php';
 
 
-consultUsers();
+print_r(getAllUsers()) ;
 
 ?>

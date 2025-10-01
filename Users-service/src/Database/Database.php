@@ -27,10 +27,10 @@ class Database
             return $connection;
         }
     }
-    function closeConnection($conecction)
+    function closeConnection($connection)
     {
-        if ($conecction){
-            $conecction->close();
+        if ($connection){
+            $connection->close();
         }
     }
 }
