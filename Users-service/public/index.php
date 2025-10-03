@@ -2,6 +2,6 @@
 require_once __DIR__ . '/../src/Models/User.php';
 
 
-print_r(getAllUsers()) ;
+header('Content-Type: application/json');
 
 ?>
