@@ -84,13 +84,13 @@ class UserModel
       }
    }
 
-   public function updateUser($name, $id)
+   public function updateUser($name, $id , $role)
    {
       $db = new Database();
       $connection = null;
       try {
          $connection = $this->db->getConnection();
-         $sql = "UPDATE users SET name = '$name' WHERE id = $id";
+         $sql = "UPDATE users SET name = '$name' , role = '$role' WHERE id = $id";
          $update = $connection->query($sql);
          if ($update && $connection->affected_rows > 0) {
             return true;

@@ -16,12 +16,57 @@ class UserController
 {
     private UserModel $model;
 
+    // validacion de nombre
+    private const MAX_NAME_LENGTH = 50;
+    private const MIN_NAME_LENGTH = 3;
+    private const PATTERN = '/^[a-zA-Z][a-zA-Z0-9_-]*$/';
+
+    // roles
+    private const VALID_ROLES = ['reader', 'admin'];
+    private const DEFAULT_ROLE = 'reader';
+
     /**
      * @param UserModel|null $model Modelo de usuarios (inyección de dependencias)
      */
     public function __construct(?UserModel $model = null)
     {
         $this->model = $model ?? new UserModel();
+    }
+
+
+    /**
+     * Funcion helper que devuelve error de validacion
+     * @param string mensaje de error de validacion al usuario
+     * @return array Estructura: ['status' => int, 'data' => null, 'message' => string]
+     */
+    private function validationError(string $message): array
+    {
+        return [
+            'status' => 400,
+            'message' => $message,
+            'data' => null
+        ];
+    }
+    private function validateName($name): ?array
+    {
+        $nameLength = strlen($name);
+
+        if ($nameLength < self::MIN_NAME_LENGTH) {
+            return $this->validationError(
+                "Username must be at least " . self::MIN_NAME_LENGTH . " characters long"
+            );
+        }
+        if ($nameLength > self::MAX_NAME_LENGTH) {
+            return $this->validationError(
+                "Username must not exceed " . self::MAX_NAME_LENGTH . " characters"
+            );
+        }
+        if (!preg_match(self::PATTERN, $name)) {
+            return $this->validationError(
+                'The username must begin with letters.'
+            );
+        }
+        return null;
     }
 
     /**
@@ -35,13 +80,8 @@ class UserController
             $users = $this->model->getAllUsers();
 
             if (empty($users)) {
-                return [
-                    'status' => 404,
-                    'data' => null,
-                    'message' => 'No users found'
-                ];
+                return $this->validationError('No users found');
             }
-
             return [
                 'status' => 200,
                 'data' => $users,
@@ -69,11 +109,7 @@ class UserController
     {
 
         if ($id <= 0) {
-            return [
-                'status' => 400,
-                'data' => null,
-                'message' => 'User ID must be a positive integer'
-            ];
+            return $this->validationError('User ID must be a positive integer');
         }
 
         try {
@@ -110,44 +146,109 @@ class UserController
      * @param string $role solo puede ser reader o admin(Por defecto es reader)
      * @return array [id => int|null , mensaje => string]
      */
-    public function createUser(string $name, string $role = 'reader'): array
+    public function createUser(string $name, string $role = self::DEFAULT_ROLE): array
     {
-        // Debe empezar por letras 
-        $regex_name = '/^[a-zA-Z][a-zA-Z0-9_-]*$/';
+        $resultNameValidation = $this->validateName($name);
 
-        if (strlen($name) < 3) {
-            return [
-                'validation error' => 'The username must be more than 3 characters long'
-            ];
-        }
-        if ($role != 'reader' && $role != 'admin') {
-            return [
-                'validation error' => 'The role must be reader or admin'
-            ];
+        if ($resultNameValidation !== null) {
+            return $resultNameValidation;
         }
 
-        if (!preg_match($regex_name, $name)) {
-            return [
-                'validation error' => 'The username must begin with letters.'
-            ];
+        if (!in_array($role, self::VALID_ROLES, true)) {
+            return $this->validationError(
+                "Role must be one of: " . implode(', ', self::VALID_ROLES)
+            );
         }
 
         try {
-            $idUser = $this->model->createUser($name, $role);
+            $userId = $this->model->createUser($name, $role);
 
-            if ($idUser) {
+            if ($userId) {
                 return [
-                    'id' => $idUser,
-                    'message' => 'User created'
+                    'status' => 201,
+                    'data' => [
+                        'name' => $name,
+                        'id' => $userId,
+                        'role' => $role
+                    ],
+                    'message' => 'User created successfully'
                 ];
             }
 
             return [
-                'id' => null,
-                'message' => "Failed to create user"
+                'status' => 500,
+                'data' => null,
+                'message' => 'Failed to create user'
             ];
         } catch (Exception $e) {
-            error_log("Error in createUser({$name}, {$role}): " . $e->getMessage());
+            // Log del error con información útil
+            error_log(sprintf(
+                "Error in createUser(name: %s, role: %s): %s",
+                $name,
+                $role,
+                $e->getMessage()
+            ));
+
+            return [
+                'status' => 500,
+                'data' => null,
+                'message' => 'Internal server error'
+            ];
+        }
+    }
+
+    /**
+     * Actualiza los datos de un usuario y lo almacena en la db
+     * 
+     * @param string $name nombre nuevo del usuario.
+     * @return array [id => int|null , mensaje => string]
+     */
+    function updateUser(string $newName, int $id, string $role): ?array
+    {
+
+        $resultValidateName = $this->validateName($newName);
+
+        if ($resultValidateName !== null) {
+            return $resultValidateName;
+        }
+        if (!in_array($role, self::VALID_ROLES, true)) {
+            return $this->validationError(
+                "Role must be one of: " . implode(', ', self::VALID_ROLES)
+            );
+        }
+        try {
+            $update = $this->model->updateUser($newName, $id, $role);
+
+            if ($update) {
+                return [
+                    'status' => 200,
+                    'data' => [
+                        'name' => $newName,
+                        'id' => $id,
+                        'role' => $role
+                    ],
+                    'message' => 'User updated successfully.'
+                ];
+            }
+            return [
+                    'status' => 404,
+                    'data' => null,
+                    'message' => 'User not found.'
+                ];
+
+        } catch (Exception $e) {
+            error_log(sprintf(
+                "Error in UpdateUser(name: %s, role: %s): %s",
+                $newName,
+                $role,
+                $e->getMessage()
+            ));
+
+            return [
+                'status' => 500,
+                'data' => null,
+                'message' => 'Internal server error'
+            ];
         }
     }
 }
