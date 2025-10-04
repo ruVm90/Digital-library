@@ -47,6 +47,11 @@ class UserController
             'data' => null
         ];
     }
+    /**
+     * Funcion helper que valida el nombre de usuario
+     * @param string nombre de usuario
+     * @return array devuelve validationError o null si pasa las validaciones
+     */
     private function validateName($name): ?array
     {
         $nameLength = strlen($name);
@@ -68,7 +73,20 @@ class UserController
         }
         return null;
     }
-
+    /**
+     * Funcion helper que valida el rol de usuario
+     * @param string rol de usuario
+     * @return array devuelve validationError o null si pasa las validaciones
+     */
+    private function validateRole(string $role)
+    {
+        if (!in_array($role, self::VALID_ROLES, true)) {
+            return $this->validationError(
+                "Role must be one of: " . implode(', ', self::VALID_ROLES)
+            );
+        }
+        return null;
+    }
     /**
      * Obtiene todos los usuarios
      * 
@@ -148,16 +166,14 @@ class UserController
      */
     public function createUser(string $name, string $role = self::DEFAULT_ROLE): array
     {
-        $resultNameValidation = $this->validateName($name);
+        $resultValidationName = $this->validateName($name);
+        $resultValidationRole = $this->validateRole($role);
 
-        if ($resultNameValidation !== null) {
-            return $resultNameValidation;
+        if ($resultValidationName !== null) {
+            return $resultValidationName;
         }
-
-        if (!in_array($role, self::VALID_ROLES, true)) {
-            return $this->validationError(
-                "Role must be one of: " . implode(', ', self::VALID_ROLES)
-            );
+        if ($resultValidationRole !== null) {
+            return $resultValidationRole;
         }
 
         try {
@@ -207,15 +223,15 @@ class UserController
     {
 
         $resultValidateName = $this->validateName($newName);
+        $resultValidationRole = $this->validateRole($role);
 
         if ($resultValidateName !== null) {
             return $resultValidateName;
         }
-        if (!in_array($role, self::VALID_ROLES, true)) {
-            return $this->validationError(
-                "Role must be one of: " . implode(', ', self::VALID_ROLES)
-            );
+        if ($resultValidationRole !== null) {
+            return $resultValidationRole;
         }
+
         try {
             $update = $this->model->updateUser($newName, $id, $role);
 
@@ -231,11 +247,10 @@ class UserController
                 ];
             }
             return [
-                    'status' => 404,
-                    'data' => null,
-                    'message' => 'User not found.'
-                ];
-
+                'status' => 404,
+                'data' => null,
+                'message' => 'User not found.'
+            ];
         } catch (Exception $e) {
             error_log(sprintf(
                 "Error in UpdateUser(name: %s, role: %s): %s",
@@ -243,6 +258,42 @@ class UserController
                 $role,
                 $e->getMessage()
             ));
+
+            return [
+                'status' => 500,
+                'data' => null,
+                'message' => 'Internal server error'
+            ];
+        }
+    }
+
+     /**
+     * Elimina un usuario de la db
+     * 
+     * @param int id del usuario que se quiere borrar.
+     * @return array [id => int|null , mensaje => string]
+     */
+    function deleteUser(int $id) : array
+    {
+      if ($id <= 0) {
+            return $this->validationError('User ID must be a positive integer');
+        }
+
+        try {
+            $delete = $this->model->deleteUser($id);
+
+            if ($delete) {
+                return [
+                    'status' => 200,
+                    'message' => 'User deleted successfully'
+                ];
+            }
+            return [
+                    'status' => 400,
+                    'message' => 'User not found'
+                ];
+        } catch (Exception $e) {
+            error_log("Error in deleteUser({$id}): " . $e->getMessage());
 
             return [
                 'status' => 500,
